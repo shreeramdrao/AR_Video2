@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Video</title>
+    <title>AR Reel Video</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
@@ -22,7 +22,7 @@
         border-radius: 8px; 
         cursor: pointer;
         z-index: 10;">
-        Start AR Video
+        Start AR Reel
     </button>
 
     <script>
@@ -69,28 +69,28 @@
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             scene.add(light);
 
-            // Load video
+            // Load video (must be a vertical reel format)
             const video = document.createElement('video');
-            video.src = 'https://ar-video2.vercel.app/assets/videoplayback.mp4'; // Your video link
+            video.src = 'https://ar-video2.vercel.app/assets/videoplayback.mp4'; // Replace with your vertical video
             video.loop = true;
             video.muted = false;
             video.autoplay = true;
 
             video.play().then(() => {
-                console.log("Video started playing.");
+                console.log("Reel video started playing.");
             }).catch(e => console.error("Video play failed", e));
 
             videoTexture = new THREE.VideoTexture(video);
             videoTexture.minFilter = THREE.LinearFilter;
             videoTexture.magFilter = THREE.LinearFilter;
 
-            // Create video plane
-            const geometry = new THREE.PlaneGeometry(2, 1); // Adjust video size
+            // Create a plane geometry with 9:16 aspect ratio for Reels
+            const geometry = new THREE.PlaneGeometry(0.9, 1.6); // Adjusted for vertical Reel format
             const material = new THREE.MeshBasicMaterial({ map: videoTexture });
             videoScreen = new THREE.Mesh(geometry, material);
             
             // Set initial position in AR space
-            videoScreen.position.set(0, 1, -3); // X, Y, Z -> Y is height, Z is depth
+            videoScreen.position.set(0, 1, -3); // X = 0, Y = 1 (height), Z = -3 (depth)
             scene.add(videoScreen);
 
             function animate() {
