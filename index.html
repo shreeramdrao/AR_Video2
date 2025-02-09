@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Reel Video</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@google/model-viewer@latest"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
 
-    <!-- Start AR Button -->
     <button id="startAR" style="
         position: absolute; 
         top: 50%; 
@@ -22,13 +22,12 @@
         border-radius: 8px; 
         cursor: pointer;
         z-index: 10;">
-        Start AR Reel
+        Start AR Video
     </button>
 
     <script>
-        let scene, camera, renderer, videoTexture, videoScreen, lastDistance = null;
-        let isDragging = false, lastX = 0, lastY = 0;
-
+        let scene, camera, renderer, videoTexture, videoScreen;
+        
         async function startAR() {
             if (!navigator.xr) {
                 alert("WebXR not supported on this device/browser.");
@@ -39,14 +38,13 @@
                 const session = await navigator.xr.requestSession('immersive-ar', {
                     requiredFeatures: ['local-floor']
                 });
-
+                
                 setupScene();
                 renderer.xr.setSession(session);
 
                 session.requestReferenceSpace('local-floor').then(referenceSpace => {
                     renderer.xr.setReferenceSpace(referenceSpace);
                 });
-
             } catch (err) {
                 console.error('WebXR session failed:', err);
                 alert("AR Session failed: " + err.message);
@@ -55,48 +53,35 @@
 
         function setupScene() {
             scene = new THREE.Scene();
-
-            // Setup camera
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             scene.add(camera);
-
-            // Setup WebGL renderer
             renderer = new THREE.WebGLRenderer({ alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
             document.body.appendChild(renderer.domElement);
-
-            // Add light
+            
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             scene.add(light);
-
-            // Load video (must be vertical format)
+            
             const video = document.createElement('video');
-            video.src = 'https://ar-video2.vercel.app/assets/videoplayback.mp4'; // Replace with your vertical video
+            video.src = 'https://ar-video2.vercel.app/assets/videoplayback.mp4';
             video.loop = true;
             video.muted = false;
             video.autoplay = true;
-
-            video.play().then(() => {
-                console.log("Reel video started playing.");
-            }).catch(e => console.error("Video play failed", e));
-
+            video.play().catch(e => console.error("Video play failed", e));
+            
             videoTexture = new THREE.VideoTexture(video);
             videoTexture.minFilter = THREE.LinearFilter;
             videoTexture.magFilter = THREE.LinearFilter;
-
-            // Create a plane geometry with 9:16 aspect ratio for Reels
-            const geometry = new THREE.PlaneGeometry(0.9, 1.6); // Adjusted for vertical Reel format
+            
+            const geometry = new THREE.PlaneGeometry(0.9, 1.6);
             const material = new THREE.MeshBasicMaterial({ map: videoTexture });
             videoScreen = new THREE.Mesh(geometry, material);
-            
-            // Set initial position in AR space
-            videoScreen.position.set(0, 1, -3); // X = 0, Y = 1 (height), Z = -3 (depth)
+            videoScreen.position.set(0, 1, -2);
             scene.add(videoScreen);
-
-            // Add zoom and drag functionality
+            
             setupControls();
-
+            
             function animate() {
                 renderer.setAnimationLoop(() => {
                     renderer.render(scene, camera);
@@ -106,15 +91,13 @@
         }
 
         function setupControls() {
-            // Mouse wheel zoom (for desktop)
-            window.addEventListener('wheel', (event) => {
-                let scale = videoScreen.scale.x;
-                scale += event.deltaY * -0.001; // Adjust zoom sensitivity
-                scale = Math.max(0.5, Math.min(3, scale)); // Limit zoom range
-                videoScreen.scale.set(scale, scale, scale);
-            });
+            let isDragging = false, lastX = 0, lastY = 0;
+            let lastDistance = null;
 
-            // Touch pinch zoom (for mobile)
+            window.addEventListener('wheel', (event) => {
+                videoScreen.position.z += event.deltaY * 0.005;
+            });
+            
             window.addEventListener('touchstart', (event) => {
                 if (event.touches.length === 2) {
                     lastDistance = getTouchDistance(event.touches);
@@ -124,14 +107,11 @@
                     lastY = event.touches[0].clientY;
                 }
             });
-
+            
             window.addEventListener('touchmove', (event) => {
                 if (event.touches.length === 2 && lastDistance !== null) {
                     let newDistance = getTouchDistance(event.touches);
-                    let scale = videoScreen.scale.x;
-                    scale *= newDistance / lastDistance;
-                    scale = Math.max(0.5, Math.min(3, scale)); // Limit zoom range
-                    videoScreen.scale.set(scale, scale, scale);
+                    videoScreen.position.z *= lastDistance / newDistance;
                     lastDistance = newDistance;
                 } else if (event.touches.length === 1 && isDragging) {
                     let deltaX = (event.touches[0].clientX - lastX) * 0.01;
@@ -142,19 +122,18 @@
                     lastY = event.touches[0].clientY;
                 }
             });
-
+            
             window.addEventListener('touchend', () => {
                 lastDistance = null;
                 isDragging = false;
             });
-
-            // Mouse drag (for desktop)
+            
             window.addEventListener('mousedown', (event) => {
                 isDragging = true;
                 lastX = event.clientX;
                 lastY = event.clientY;
             });
-
+            
             window.addEventListener('mousemove', (event) => {
                 if (isDragging) {
                     let deltaX = (event.clientX - lastX) * 0.01;
@@ -165,7 +144,7 @@
                     lastY = event.clientY;
                 }
             });
-
+            
             window.addEventListener('mouseup', () => {
                 isDragging = false;
             });
