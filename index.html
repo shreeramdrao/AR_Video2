@@ -26,7 +26,7 @@
     </button>
 
     <script>
-        let scene, camera, renderer, videoTexture, videoScreen;
+        let scene, camera, renderer, videoTexture, videoScreen, lastDistance = null;
 
         async function startAR() {
             if (!navigator.xr) {
@@ -69,9 +69,9 @@
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             scene.add(light);
 
-            // Load video (must be a vertical reel format)
+            // Load video (must be vertical format)
             const video = document.createElement('video');
-            video.src = 'https://ar-video2.vercel.app/assets/videoplayback.mp4'; // Replace with your vertical video
+            video.src = 'https://ar-video2.vercel.app/assets/reel-video.mp4'; // Replace with your vertical video
             video.loop = true;
             video.muted = false;
             video.autoplay = true;
@@ -93,12 +93,53 @@
             videoScreen.position.set(0, 1, -3); // X = 0, Y = 1 (height), Z = -3 (depth)
             scene.add(videoScreen);
 
+            // Add zoom functionality
+            setupZoomControls();
+
             function animate() {
                 renderer.setAnimationLoop(() => {
                     renderer.render(scene, camera);
                 });
             }
             animate();
+        }
+
+        function setupZoomControls() {
+            // Mouse wheel zoom (for desktop)
+            window.addEventListener('wheel', (event) => {
+                let scale = videoScreen.scale.x;
+                scale += event.deltaY * -0.001; // Adjust zoom sensitivity
+                scale = Math.max(0.5, Math.min(3, scale)); // Limit zoom range
+                videoScreen.scale.set(scale, scale, scale);
+            });
+
+            // Touch pinch zoom (for mobile)
+            window.addEventListener('touchstart', (event) => {
+                if (event.touches.length === 2) {
+                    lastDistance = getTouchDistance(event.touches);
+                }
+            });
+
+            window.addEventListener('touchmove', (event) => {
+                if (event.touches.length === 2 && lastDistance !== null) {
+                    let newDistance = getTouchDistance(event.touches);
+                    let scale = videoScreen.scale.x;
+                    scale *= newDistance / lastDistance;
+                    scale = Math.max(0.5, Math.min(3, scale)); // Limit zoom range
+                    videoScreen.scale.set(scale, scale, scale);
+                    lastDistance = newDistance;
+                }
+            });
+
+            window.addEventListener('touchend', () => {
+                lastDistance = null;
+            });
+        }
+
+        function getTouchDistance(touches) {
+            let dx = touches[0].pageX - touches[1].pageX;
+            let dy = touches[0].pageY - touches[1].pageY;
+            return Math.sqrt(dx * dx + dy * dy);
         }
 
         document.getElementById('startAR').addEventListener('click', function() {
