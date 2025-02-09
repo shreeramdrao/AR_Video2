@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Video</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body style="margin: 0; overflow: hidden;">
+
+    <!-- Start AR Button -->
+    <button id="startAR" style="
+        position: absolute; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%);
+        padding: 15px 25px; 
+        font-size: 18px; 
+        background: #007bff; 
+        color: white; 
+        border: none; 
+        border-radius: 8px; 
+        cursor: pointer;
+        z-index: 10;">
+        Start AR Video
+    </button>
+
+    <script>
+        let scene, camera, renderer, videoTexture, videoScreen;
+
+        async function startAR() {
+            if (!navigator.xr) {
+                alert("WebXR not supported on this device/browser.");
+                return;
+            }
+
+            try {
+                const session = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['local-floor']
+                });
+
+                setupScene();
+                renderer.xr.setSession(session);
+
+                session.requestReferenceSpace('local-floor').then(referenceSpace => {
+                    renderer.xr.setReferenceSpace(referenceSpace);
+                });
+
+            } catch (err) {
+                console.error('WebXR session failed:', err);
+                alert("AR Session failed: " + err.message);
+            }
+        }
+
+        function setupScene() {
+            scene = new THREE.Scene();
+
+            // Setup camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            scene.add(camera);
+
+            // Setup WebGL renderer
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Add light
+            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+            scene.add(light);
+
+            // Load video
+            const video = document.createElement('video');
+            video.src = 'https://ar-video.vercel.app/assets/videoplayback.mp4'; // Your video link
+            video.loop = true;
+            video.muted = false;
+            video.autoplay = true;
+
+            video.play().then(() => {
+                console.log("Video started playing.");
+            }).catch(e => console.error("Video play failed", e));
+
+            videoTexture = new THREE.VideoTexture(video);
+            videoTexture.minFilter = THREE.LinearFilter;
+            videoTexture.magFilter = THREE.LinearFilter;
+
+            // Create video plane
+            const geometry = new THREE.PlaneGeometry(2, 1); // Adjust video size
+            const material = new THREE.MeshBasicMaterial({ map: videoTexture });
+            videoScreen = new THREE.Mesh(geometry, material);
+            
+            // Set initial position in AR space
+            videoScreen.position.set(0, 1, -3); // X, Y, Z -> Y is height, Z is depth
+            scene.add(videoScreen);
+
+            function animate() {
+                renderer.setAnimationLoop(() => {
+                    renderer.render(scene, camera);
+                });
+            }
+            animate();
+        }
+
+        document.getElementById('startAR').addEventListener('click', function() {
+            this.style.display = 'none';
+            startAR();
+        });
+    </script>
+</body>
+</html>
