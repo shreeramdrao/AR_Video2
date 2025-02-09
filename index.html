@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Reel Video</title>
+    <title>AR Video</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@google/model-viewer@latest"></script>
 </head>
 <body style="margin: 0; overflow: hidden;">
-
     <button id="startAR" style="
         position: absolute; 
         top: 50%; 
@@ -26,22 +24,18 @@
     </button>
 
     <script>
-        let scene, camera, renderer, videoTexture, videoScreen;
-        
+        let scene, camera, renderer, videoTexture, videoScreen, controls;
+        let isDragging = false, previousTouch;
+
         async function startAR() {
             if (!navigator.xr) {
                 alert("WebXR not supported on this device/browser.");
                 return;
             }
-
             try {
-                const session = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['local-floor']
-                });
-                
+                const session = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local-floor'] });
                 setupScene();
                 renderer.xr.setSession(session);
-
                 session.requestReferenceSpace('local-floor').then(referenceSpace => {
                     renderer.xr.setReferenceSpace(referenceSpace);
                 });
@@ -62,25 +56,23 @@
             
             const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
             scene.add(light);
-            
+
             const video = document.createElement('video');
             video.src = 'https://ar-video2.vercel.app/assets/videoplayback.mp4';
             video.loop = true;
             video.muted = false;
             video.autoplay = true;
-            video.play().catch(e => console.error("Video play failed", e));
+            video.play();
             
             videoTexture = new THREE.VideoTexture(video);
             videoTexture.minFilter = THREE.LinearFilter;
             videoTexture.magFilter = THREE.LinearFilter;
             
-            const geometry = new THREE.PlaneGeometry(0.9, 1.6);
+            const geometry = new THREE.PlaneGeometry(1.5, 3);
             const material = new THREE.MeshBasicMaterial({ map: videoTexture });
             videoScreen = new THREE.Mesh(geometry, material);
-            videoScreen.position.set(0, 1, -2);
+            videoScreen.position.set(0, 1, -3);
             scene.add(videoScreen);
-            
-            setupControls();
             
             function animate() {
                 renderer.setAnimationLoop(() => {
@@ -88,72 +80,31 @@
                 });
             }
             animate();
+            addControls();
         }
 
-        function setupControls() {
-            let isDragging = false, lastX = 0, lastY = 0;
-            let lastDistance = null;
+        function addControls() {
+            window.addEventListener('wheel', event => {
+                videoScreen.scale.multiplyScalar(event.deltaY > 0 ? 0.9 : 1.1);
+            });
 
-            window.addEventListener('wheel', (event) => {
-                videoScreen.position.z += event.deltaY * 0.005;
-            });
-            
-            window.addEventListener('touchstart', (event) => {
-                if (event.touches.length === 2) {
-                    lastDistance = getTouchDistance(event.touches);
-                } else if (event.touches.length === 1) {
-                    isDragging = true;
-                    lastX = event.touches[0].clientX;
-                    lastY = event.touches[0].clientY;
-                }
-            });
-            
-            window.addEventListener('touchmove', (event) => {
-                if (event.touches.length === 2 && lastDistance !== null) {
-                    let newDistance = getTouchDistance(event.touches);
-                    videoScreen.position.z *= lastDistance / newDistance;
-                    lastDistance = newDistance;
-                } else if (event.touches.length === 1 && isDragging) {
-                    let deltaX = (event.touches[0].clientX - lastX) * 0.01;
-                    let deltaY = (event.touches[0].clientY - lastY) * -0.01;
-                    videoScreen.position.x += deltaX;
-                    videoScreen.position.y += deltaY;
-                    lastX = event.touches[0].clientX;
-                    lastY = event.touches[0].clientY;
-                }
-            });
-            
-            window.addEventListener('touchend', () => {
-                lastDistance = null;
-                isDragging = false;
-            });
-            
-            window.addEventListener('mousedown', (event) => {
+            window.addEventListener('pointerdown', event => {
                 isDragging = true;
-                lastX = event.clientX;
-                lastY = event.clientY;
+                previousTouch = { x: event.clientX, y: event.clientY };
             });
-            
-            window.addEventListener('mousemove', (event) => {
-                if (isDragging) {
-                    let deltaX = (event.clientX - lastX) * 0.01;
-                    let deltaY = (event.clientY - lastY) * -0.01;
-                    videoScreen.position.x += deltaX;
-                    videoScreen.position.y += deltaY;
-                    lastX = event.clientX;
-                    lastY = event.clientY;
-                }
+
+            window.addEventListener('pointermove', event => {
+                if (!isDragging) return;
+                const deltaX = (event.clientX - previousTouch.x) * 0.01;
+                const deltaY = (event.clientY - previousTouch.y) * -0.01;
+                videoScreen.position.x += deltaX;
+                videoScreen.position.y += deltaY;
+                previousTouch = { x: event.clientX, y: event.clientY };
             });
-            
-            window.addEventListener('mouseup', () => {
+
+            window.addEventListener('pointerup', () => {
                 isDragging = false;
             });
-        }
-
-        function getTouchDistance(touches) {
-            let dx = touches[0].pageX - touches[1].pageX;
-            let dy = touches[0].pageY - touches[1].pageY;
-            return Math.sqrt(dx * dx + dy * dy);
         }
 
         document.getElementById('startAR').addEventListener('click', function() {
