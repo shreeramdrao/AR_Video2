@@ -27,6 +27,7 @@
 
     <script>
         let scene, camera, renderer, videoTexture, videoScreen, lastDistance = null;
+        let isDragging = false, lastX = 0, lastY = 0;
 
         async function startAR() {
             if (!navigator.xr) {
@@ -93,8 +94,8 @@
             videoScreen.position.set(0, 1, -3); // X = 0, Y = 1 (height), Z = -3 (depth)
             scene.add(videoScreen);
 
-            // Add zoom functionality
-            setupZoomControls();
+            // Add zoom and drag functionality
+            setupControls();
 
             function animate() {
                 renderer.setAnimationLoop(() => {
@@ -104,7 +105,7 @@
             animate();
         }
 
-        function setupZoomControls() {
+        function setupControls() {
             // Mouse wheel zoom (for desktop)
             window.addEventListener('wheel', (event) => {
                 let scale = videoScreen.scale.x;
@@ -117,6 +118,10 @@
             window.addEventListener('touchstart', (event) => {
                 if (event.touches.length === 2) {
                     lastDistance = getTouchDistance(event.touches);
+                } else if (event.touches.length === 1) {
+                    isDragging = true;
+                    lastX = event.touches[0].clientX;
+                    lastY = event.touches[0].clientY;
                 }
             });
 
@@ -128,11 +133,41 @@
                     scale = Math.max(0.5, Math.min(3, scale)); // Limit zoom range
                     videoScreen.scale.set(scale, scale, scale);
                     lastDistance = newDistance;
+                } else if (event.touches.length === 1 && isDragging) {
+                    let deltaX = (event.touches[0].clientX - lastX) * 0.01;
+                    let deltaY = (event.touches[0].clientY - lastY) * -0.01;
+                    videoScreen.position.x += deltaX;
+                    videoScreen.position.y += deltaY;
+                    lastX = event.touches[0].clientX;
+                    lastY = event.touches[0].clientY;
                 }
             });
 
             window.addEventListener('touchend', () => {
                 lastDistance = null;
+                isDragging = false;
+            });
+
+            // Mouse drag (for desktop)
+            window.addEventListener('mousedown', (event) => {
+                isDragging = true;
+                lastX = event.clientX;
+                lastY = event.clientY;
+            });
+
+            window.addEventListener('mousemove', (event) => {
+                if (isDragging) {
+                    let deltaX = (event.clientX - lastX) * 0.01;
+                    let deltaY = (event.clientY - lastY) * -0.01;
+                    videoScreen.position.x += deltaX;
+                    videoScreen.position.y += deltaY;
+                    lastX = event.clientX;
+                    lastY = event.clientY;
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
             });
         }
 
