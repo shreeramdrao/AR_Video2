@@ -85,7 +85,12 @@
 
         function addControls() {
             window.addEventListener('wheel', event => {
-                videoScreen.scale.multiplyScalar(event.deltaY > 0 ? 0.9 : 1.1);
+                let scaleFactor = event.deltaY > 0 ? 0.9 : 1.1;
+                videoScreen.scale.set(
+                    videoScreen.scale.x * scaleFactor,
+                    videoScreen.scale.y * scaleFactor,
+                    videoScreen.scale.z * scaleFactor
+                );
             });
 
             window.addEventListener('pointerdown', event => {
@@ -95,8 +100,8 @@
 
             window.addEventListener('pointermove', event => {
                 if (!isDragging) return;
-                const deltaX = (event.clientX - previousTouch.x) * 0.01;
-                const deltaY = (event.clientY - previousTouch.y) * -0.01;
+                const deltaX = (event.clientX - previousTouch.x) * 0.005;
+                const deltaY = (event.clientY - previousTouch.y) * -0.005;
                 videoScreen.position.x += deltaX;
                 videoScreen.position.y += deltaY;
                 previousTouch = { x: event.clientX, y: event.clientY };
@@ -104,6 +109,31 @@
 
             window.addEventListener('pointerup', () => {
                 isDragging = false;
+            });
+
+            window.addEventListener('touchstart', event => {
+                if (event.touches.length === 2) {
+                    event.preventDefault();
+                    let dx = event.touches[0].clientX - event.touches[1].clientX;
+                    let dy = event.touches[0].clientY - event.touches[1].clientY;
+                    previousTouch = Math.sqrt(dx * dx + dy * dy);
+                }
+            });
+
+            window.addEventListener('touchmove', event => {
+                if (event.touches.length === 2) {
+                    event.preventDefault();
+                    let dx = event.touches[0].clientX - event.touches[1].clientX;
+                    let dy = event.touches[0].clientY - event.touches[1].clientY;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    let scaleFactor = distance > previousTouch ? 1.05 : 0.95;
+                    videoScreen.scale.set(
+                        videoScreen.scale.x * scaleFactor,
+                        videoScreen.scale.y * scaleFactor,
+                        videoScreen.scale.z * scaleFactor
+                    );
+                    previousTouch = distance;
+                }
             });
         }
 
